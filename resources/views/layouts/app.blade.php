@@ -409,7 +409,25 @@
                     <h1 class="text-lg font-semibold text-gray-800">@yield('page-title', 'Дашборд')</h1>
                 </div>
                 <div class="flex items-center gap-3">
-                    <span class="hidden sm:block text-sm text-gray-500">{{ now()->isoFormat('D MMMM YYYY') }}</span>
+                    <div class="hidden sm:flex items-center gap-1.5 text-sm text-gray-500"
+                         x-data="{
+                             time: '',
+                             date: '',
+                             months: ['января','февраля','марта','апреля','мая','июня','июля','августа','сентября','октября','ноября','декабря'],
+                             tick() {
+                                 const now = new Date();
+                                 const h = String(now.getHours()).padStart(2,'0');
+                                 const m = String(now.getMinutes()).padStart(2,'0');
+                                 const s = String(now.getSeconds()).padStart(2,'0');
+                                 this.time = h+':'+m+':'+s;
+                                 this.date = now.getDate()+' '+this.months[now.getMonth()]+' '+now.getFullYear();
+                             }
+                         }"
+                         x-init="tick(); setInterval(() => tick(), 1000)">
+                        <span x-text="date"></span>
+                        <span class="text-gray-300">·</span>
+                        <span x-text="time" class="font-mono tabular-nums"></span>
+                    </div>
                     <a href="{{ route('profile') }}" class="flex items-center gap-2 group">
                         <div class="w-8 h-8 rounded-full overflow-hidden ring-2 ring-gray-200 group-hover:ring-emerald-400 transition-all shrink-0">
                             @if($authAvatarUrl)
