@@ -139,7 +139,7 @@
                 const cx = r.left + r.width / 2;
                 const cy = r.top + r.height / 2;
                 const dist = Math.hypot(e.clientX - cx, e.clientY - cy);
-                if (dist < 110) moveAway();
+                if (dist < 50) moveAway(); // отпрыгивает только когда курсор совсем близко
             });
         })();
     </script>
