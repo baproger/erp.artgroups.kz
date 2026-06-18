@@ -10,6 +10,7 @@ use App\Models\KpiPlan;
 use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
@@ -19,6 +20,25 @@ class AdminController extends Controller
     public function __construct()
     {
         $this->middleware('role:ceo');
+    }
+
+    /**
+     * Временный запуск миграций через веб-PHP (когда консольная PHP без MySQL-драйвера).
+     * Только для CEO. После применения маршрут будет удалён.
+     */
+    public function runMigrations()
+    {
+        Artisan::call('migrate', ['--force' => true]);
+        $output = Artisan::output();
+
+        Artisan::call('optimize:clear');
+        $output .= "\n" . Artisan::output();
+
+        return response(
+            '<pre style="font-family:monospace;font-size:14px;line-height:1.5;padding:20px;white-space:pre-wrap;">'
+            . e($output)
+            . "\n\n✅ Готово. Можно закрыть страницу.</pre>"
+        );
     }
 
     public function users(Request $request)
