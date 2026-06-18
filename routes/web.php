@@ -13,6 +13,7 @@ use App\Http\Controllers\SettingsController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', fn() => redirect()->route('dashboard'));
+Route::redirect('/home', '/dashboard');
 
 // Auth
 Route::middleware('guest')->group(function () {
