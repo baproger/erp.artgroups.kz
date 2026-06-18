@@ -21,11 +21,15 @@ class RegisterController extends Controller
 
     public function register(Request $request)
     {
+        // Самостоятельная регистрация доступна только для рядовых ролей —
+        // ceo и commercial_director назначает администратор вручную.
+        $allowedRoles = array_keys(collect(User::ROLES)->except(['ceo', 'commercial_director'])->all());
+
         $request->validate([
             'name'          => 'required|string|max:255',
             'email'         => 'required|email|unique:users',
             'password'      => 'required|min:8|confirmed',
-            'role'          => 'required|in:' . implode(',', array_keys(User::ROLES)),
+            'role'          => 'required|in:' . implode(',', $allowedRoles),
             'branch_id'     => 'nullable|exists:branches,id',
             'department_id' => 'nullable|exists:departments,id',
         ]);

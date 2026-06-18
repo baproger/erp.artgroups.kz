@@ -25,7 +25,7 @@ class SettingsController extends Controller
     {
         $request->validate([
             'company_name' => 'required|string|max:100',
-            'company_logo' => 'nullable|image|mimes:jpeg,png,webp,svg+xml|max:2048',
+            'company_logo' => 'nullable|image|mimes:jpeg,png,webp,svg|max:2048',
         ]);
 
         Setting::set('company_name', $request->company_name);
