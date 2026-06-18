@@ -1,9 +1,14 @@
+@php
+    $companyName = \App\Models\Setting::get('company_name', 'Artgroups');
+    $companyLogo = \App\Models\Setting::get('company_logo');
+    $logoSrc     = $companyLogo ? asset('storage/' . $companyLogo) : asset('images/artlogo.png');
+@endphp
 <!DOCTYPE html>
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Вход — Artgroups ERP</title>
+    <title>Вход — {{ $companyName }} ERP</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
@@ -99,9 +104,9 @@
     {{-- Logo --}}
     <div class="relative fade-left">
         <div class="inline-flex items-center gap-3 bg-white/10 backdrop-blur rounded-2xl px-5 py-3 border border-white/20">
-            <img src="{{ asset('images/artlogo.png') }}" alt="Artgroups" class="h-10 w-auto object-contain">
+            <img src="{{ $logoSrc }}" alt="{{ $companyName }}" class="h-10 w-auto object-contain">
             <div>
-                <div class="text-white font-bold text-lg leading-tight">Artgroups</div>
+                <div class="text-white font-bold text-lg leading-tight">{{ $companyName }}</div>
                 <div class="text-emerald-300 text-xs">ERP Dashboard</div>
             </div>
         </div>
@@ -151,9 +156,9 @@
     {{-- Mobile logo --}}
     <div class="lg:hidden mb-8 text-center fade-up">
         <div class="inline-flex items-center gap-3 mb-3">
-            <img src="{{ asset('images/artlogo.png') }}" alt="Artgroups" class="h-12 w-auto object-contain">
+            <img src="{{ $logoSrc }}" alt="{{ $companyName }}" class="h-12 w-auto object-contain">
         </div>
-        <div class="text-2xl font-black text-gray-800">Artgroups ERP</div>
+        <div class="text-2xl font-black text-gray-800">{{ $companyName }} ERP</div>
         <div class="text-gray-400 text-sm">Система управления KPI</div>
     </div>
 

@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Регистрация — Artgroups ERP</title>
+    <title>Регистрация — {{ \App\Models\Setting::get('company_name', 'Artgroups') }} ERP</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
     <style>[x-cloak]{display:none!important}</style>
@@ -12,14 +12,17 @@
 
 @php
     $deptsJson = $departments->map(fn($d) => ['id'=>$d->id,'name'=>$d->name,'branch_id'=>$d->branch_id])->values()->toJson();
+    $companyName = \App\Models\Setting::get('company_name', 'Artgroups');
+    $companyLogo = \App\Models\Setting::get('company_logo');
+    $logoSrc     = $companyLogo ? asset('storage/' . $companyLogo) : asset('images/artlogo.png');
 @endphp
 
 <div class="w-full max-w-lg" x-data="registerForm()">
     <div class="text-center mb-6">
         <div class="inline-flex items-center justify-center bg-white rounded-2xl shadow-lg mb-3 px-5 py-3">
-            <img src="{{ asset('images/artlogo.png') }}" alt="Artgroups" class="h-16 w-auto object-contain">
+            <img src="{{ $logoSrc }}" alt="{{ $companyName }}" class="h-16 w-auto object-contain">
         </div>
-        <h1 class="text-2xl font-bold text-white">Artgroups ERP</h1>
+        <h1 class="text-2xl font-bold text-white">{{ $companyName }} ERP</h1>
     </div>
 
     <div class="bg-white rounded-2xl shadow-2xl p-7">
