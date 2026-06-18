@@ -67,7 +67,6 @@ Route::middleware(['auth', 'active'])->group(function () {
 
     // Admin
     Route::prefix('admin')->name('admin.')->group(function () {
-        Route::get('/run-migrations',         [AdminController::class, 'runMigrations'])->name('run.migrations'); // временно
         Route::get('/users',                  [AdminController::class, 'users'])->name('users');
         Route::post('/users',                 [AdminController::class, 'storeUser'])->name('users.store');
         Route::put('/users/{user}',           [AdminController::class, 'updateUser'])->name('users.update');
