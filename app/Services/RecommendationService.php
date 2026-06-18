@@ -26,7 +26,6 @@ class RecommendationService
 
     private function checkMissingFacts(int $year, int $month, Carbon $now): void
     {
-        $cutoff = $now->copy()->subDays(3)->startOfDay();
         $kpis = Kpi::with('department')->where('is_active', true)->get();
 
         foreach ($kpis as $kpi) {
