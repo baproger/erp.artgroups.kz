@@ -5,7 +5,6 @@ use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Auth\RegisterController;
 use App\Http\Controllers\BranchController;
 use App\Http\Controllers\DashboardController;
-use App\Http\Controllers\ExportController;
 use App\Http\Controllers\KpiController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\ProfileController;
@@ -49,9 +48,6 @@ Route::middleware(['auth', 'active'])->group(function () {
     Route::get('/recommendations',                            [RecommendationController::class, 'index'])->name('rec.index');
     Route::post('/recommendations/{recommendation}/dismiss', [RecommendationController::class, 'dismiss'])->name('rec.dismiss');
     Route::post('/recommendations/generate',                  [RecommendationController::class, 'generate'])->name('rec.generate');
-
-    // Excel export
-    Route::get('/export', [ExportController::class, 'download'])->name('export.download');
 
     // Profile
     Route::get('/profile',              [ProfileController::class, 'edit'])->name('profile');

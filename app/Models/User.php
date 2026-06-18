@@ -53,11 +53,6 @@ class User extends Authenticatable
         return in_array($this->role, ['ceo', 'commercial_director']);
     }
 
-    public function canExportExcel(): bool
-    {
-        return in_array($this->role, ['ceo', 'commercial_director']);
-    }
-
     public function canManageUsers(): bool
     {
         return $this->role === 'ceo';
