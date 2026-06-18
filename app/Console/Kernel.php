@@ -12,7 +12,11 @@ class Kernel extends ConsoleKernel
      */
     protected function schedule(Schedule $schedule): void
     {
-        // $schedule->command('inspire')->hourly();
+        // Напоминания о незаполненных KPI — ежедневно в 17:00 (Asia/Almaty).
+        $schedule->command('kpi:remind')
+            ->dailyAt('17:00')
+            ->timezone('Asia/Almaty')
+            ->weekdays();
     }
 
     /**

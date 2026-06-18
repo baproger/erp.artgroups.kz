@@ -474,27 +474,65 @@
 @stack('scripts')
 
 {{-- ═══════════════════════════════════════════════════════════════
-     PUSH-НАПОМИНАНИЕ О НЕЗАПОЛНЕННЫХ ФАКТАХ (с 17:00, для сотрудников)
+     WEB PUSH — напоминания о незаполненных фактах (работают даже при
+     закрытом сайте, рассылает сервер в {{ config('webpush.remind_hour', 17) }}:00).
+     Для сотрудников отделов.
 ═══════════════════════════════════════════════════════════════ --}}
 @if(! $authUser->canSeeAllBranches() && ! $authUser->isCommercialDirector() && $authUser->department)
 <script>
 (function () {
-    const ENDPOINT = "{{ route('notifications.unfilled') }}";
-    const ICON     = "{{ $logoSrc }}";
-    const POLL_MS  = 5 * 60 * 1000; // проверять каждые 5 минут
+    const CSRF       = document.querySelector('meta[name="csrf-token"]').content;
+    const UNFILLED   = "{{ route('notifications.unfilled') }}";
+    const VAPID_URL  = "{{ route('push.vapid') }}";
+    const SUB_URL    = "{{ route('push.subscribe') }}";
+    const ICON       = "{{ $logoSrc }}";
+    const POLL_MS    = 5 * 60 * 1000;
 
-    function dayKey() {
-        return 'kpiReminderShown_' + new Date().toISOString().slice(0, 10);
+    function urlBase64ToUint8Array(base64String) {
+        const padding = '='.repeat((4 - base64String.length % 4) % 4);
+        const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+        const raw = atob(base64);
+        const out = new Uint8Array(raw.length);
+        for (let i = 0; i < raw.length; i++) out[i] = raw.charCodeAt(i);
+        return out;
     }
 
-    function buildBody(data) {
-        const names = [];
-        data.departments.forEach(d => d.kpis.forEach(k => names.push(k)));
-        const preview = names.slice(0, 4).join(', ');
-        const more = names.length > 4 ? ' и ещё ' + (names.length - 4) : '';
-        return 'Не заполнено ' + data.count + ' KPI за сегодня: ' + preview + more;
+    // ── Подписка на Web Push (работает при закрытом сайте) ──
+    async function setupPush() {
+        if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
+        try {
+            const reg = await navigator.serviceWorker.register('/sw.js');
+
+            if (Notification.permission === 'default') {
+                const perm = await Notification.requestPermission();
+                if (perm !== 'granted') return;
+            }
+            if (Notification.permission !== 'granted') return;
+
+            let sub = await reg.pushManager.getSubscription();
+            if (!sub) {
+                const keyRes = await fetch(VAPID_URL, { headers: { 'Accept': 'application/json' } });
+                const { key } = await keyRes.json();
+                sub = await reg.pushManager.subscribe({
+                    userVisibleOnly: true,
+                    applicationServerKey: urlBase64ToUint8Array(key),
+                });
+            }
+
+            const json = sub.toJSON();
+            await fetch(SUB_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': CSRF, 'Accept': 'application/json' },
+                body: JSON.stringify({
+                    endpoint: sub.endpoint,
+                    keys: json.keys,
+                    content_encoding: (PushManager.supportedContentEncodings || ['aes128gcm'])[0],
+                }),
+            });
+        } catch (e) { /* push недоступен — сработает баннер-фоллбэк ниже */ }
     }
 
+    // ── Баннер-фоллбэк (когда push не разрешён, пока вкладка открыта) ──
     function showBanner(text) {
         if (document.getElementById('kpiReminderBanner')) return;
         const el = document.createElement('div');
@@ -513,45 +551,30 @@
         setTimeout(() => el && el.remove(), 12000);
     }
 
-    function notify(data) {
-        const body = buildBody(data);
-        if ('Notification' in window && Notification.permission === 'granted') {
-            try {
-                const n = new Notification('📋 Заполните KPI за сегодня', {
-                    body: body, icon: ICON, tag: 'kpi-reminder', renotify: true,
-                });
-                n.onclick = () => { window.focus(); n.close(); };
-            } catch (e) {
-                showBanner(body);
-            }
-        } else {
-            showBanner(body); // запасной вариант, если разрешение не выдано
-        }
-    }
+    function dayKey() { return 'kpiBannerShown_' + new Date().toISOString().slice(0, 10); }
 
-    async function check() {
+    async function checkFallback() {
+        // Баннер показываем только если системные уведомления НЕ разрешены
+        if ('Notification' in window && Notification.permission === 'granted') return;
         try {
-            const res = await fetch(ENDPOINT, { headers: { 'Accept': 'application/json' } });
+            const res = await fetch(UNFILLED, { headers: { 'Accept': 'application/json' } });
             if (!res.ok) return;
             const data = await res.json();
             if (data.should_notify && localStorage.getItem(dayKey()) !== '1') {
-                notify(data);
-                localStorage.setItem(dayKey(), '1'); // одно напоминание в день
+                const names = [];
+                data.departments.forEach(d => d.kpis.forEach(k => names.push(k)));
+                const preview = names.slice(0, 4).join(', ');
+                const more = names.length > 4 ? ' и ещё ' + (names.length - 4) : '';
+                showBanner('Не заполнено ' + data.count + ' KPI за сегодня: ' + preview + more);
+                localStorage.setItem(dayKey(), '1');
             }
-        } catch (e) { /* тихо игнорируем */ }
+        } catch (e) { /* тихо */ }
     }
 
-    // Запросить разрешение на уведомления (на загрузке и по первому клику)
-    function askPermission() {
-        if ('Notification' in window && Notification.permission === 'default') {
-            Notification.requestPermission().catch(() => {});
-        }
-    }
-    askPermission();
-    document.addEventListener('click', askPermission, { once: true });
-
-    check();
-    setInterval(check, POLL_MS);
+    setupPush();
+    document.addEventListener('click', () => { if (Notification.permission === 'default') setupPush(); }, { once: true });
+    checkFallback();
+    setInterval(checkFallback, POLL_MS);
 })();
 </script>
 @endif

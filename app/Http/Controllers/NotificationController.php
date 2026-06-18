@@ -2,56 +2,78 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Kpi;
+use App\Models\PushSubscription;
 use App\Models\User;
-use Illuminate\Support\Carbon;
+use App\Services\KpiReminderService;
+use Illuminate\Http\Request;
 
 class NotificationController extends Controller
 {
+    public function __construct(private KpiReminderService $reminder) {}
+
     /**
-     * Час, с которого напоминать о незаполненных фактах (Asia/Almaty).
+     * Публичный VAPID-ключ для подписки браузера.
      */
-    private const REMIND_FROM_HOUR = 17;
+    public function vapidKey()
+    {
+        return response()->json([
+            'key' => config('webpush.vapid.public_key'),
+        ]);
+    }
+
+    /**
+     * Сохранить подписку браузера на push-уведомления.
+     */
+    public function subscribe(Request $request)
+    {
+        $data = $request->validate([
+            'endpoint'         => 'required|string|max:500',
+            'keys.p256dh'      => 'required|string',
+            'keys.auth'        => 'required|string',
+            'content_encoding' => 'nullable|string|max:30',
+        ]);
+
+        PushSubscription::updateOrCreate(
+            ['endpoint' => $data['endpoint']],
+            [
+                'user_id'          => auth()->id(),
+                'public_key'       => $data['keys']['p256dh'],
+                'auth_token'       => $data['keys']['auth'],
+                'content_encoding' => $data['content_encoding'] ?? 'aes128gcm',
+            ]
+        );
+
+        return response()->json(['ok' => true]);
+    }
+
+    /**
+     * Удалить подписку (отписка).
+     */
+    public function unsubscribe(Request $request)
+    {
+        $request->validate(['endpoint' => 'required|string']);
+
+        PushSubscription::where('endpoint', $request->endpoint)
+            ->where('user_id', auth()->id())
+            ->delete();
+
+        return response()->json(['ok' => true]);
+    }
 
     /**
      * Список KPI, по которым сотрудник ещё не ввёл факт за сегодня.
-     * Используется фронтендом для push-уведомления с 17:00.
+     * Используется для напоминания пока вкладка открыта (мгновенно, без 17:00 ограничения сервером).
      */
     public function unfilledFacts()
     {
         /** @var User $user */
-        $user  = auth()->user();
-        $today = today()->toDateString();
-
-        $departments = [];
-        $count = 0;
-
-        foreach ($user->fillableDepartments() as $dept) {
-            $missing = Kpi::where('department_id', $dept->id)
-                ->where('is_active', true)
-                ->whereDoesntHave('facts', fn($q) => $q->whereDate('fact_date', $today))
-                ->orderBy('sort_order')
-                ->pluck('name')
-                ->all();
-
-            if (! empty($missing)) {
-                $label = $dept->branch
-                    ? "{$dept->name} — {$dept->branch->name}"
-                    : $dept->name;
-
-                $departments[] = ['department' => $label, 'kpis' => $missing];
-                $count += count($missing);
-            }
-        }
-
-        $now = Carbon::now(); // Asia/Almaty (config/app.php)
+        $user = auth()->user();
+        $data = $this->reminder->unfilledForUser($user);
 
         return response()->json([
-            'should_notify' => $count > 0 && $now->hour >= self::REMIND_FROM_HOUR,
-            'count'         => $count,
-            'departments'   => $departments,
-            'today'         => $today,
-            'server_hour'   => $now->hour,
+            'should_notify' => $data['count'] > 0 && $this->reminder->isRemindTime(),
+            'count'         => $data['count'],
+            'departments'   => $data['departments'],
         ]);
     }
 }
