@@ -70,12 +70,79 @@
                     class="inline-flex items-center gap-2 px-6 py-3 bg-white/10 text-white font-semibold rounded-xl border border-white/20 hover:bg-white/20 transition-all">
                 ↩️ Назад
             </button>
+
+            {{-- Кнопка-обманка: убегает от курсора, кликнуть нельзя 😈 --}}
+            <button id="sneakyBtn" type="button"
+                    style="transition: left .12s ease, top .12s ease; z-index:60;"
+                    class="inline-flex items-center gap-2 px-6 py-3 bg-amber-400 text-amber-950 font-bold rounded-xl shadow-lg">
+                😏 Всё равно зайду
+            </button>
         </div>
+
+        {{-- Подпись-троллинг под бегающей кнопкой --}}
+        <p id="sneakyMsg" class="text-amber-300/80 text-sm font-medium mt-5 h-5 transition-opacity duration-300"></p>
 
         <p class="text-emerald-300/50 text-xs mt-10 pop-in delay-3">
             Если ты уверен, что доступ нужен — попроси администратора повысить тебя в звании 😎
         </p>
     </div>
+
+    <script>
+        (function () {
+            const btn = document.getElementById('sneakyBtn');
+            const msg = document.getElementById('sneakyMsg');
+            if (!btn) return;
+
+            const phrases = [
+                'Не так быстро 😜',
+                'Мимо! 🏃',
+                'Поймай меня 😆',
+                'Даже не мечтай 🙅',
+                'Ха-ха, не выйдет 😂',
+                'Серик начеку 💂',
+                'Упорный! Но нет 🚫',
+                'Сдавайся уже 🤣',
+            ];
+            let freed = false;
+            let tries = 0;
+
+            function moveAway() {
+                const w = window.innerWidth, h = window.innerHeight;
+                const bw = btn.offsetWidth, bh = btn.offsetHeight;
+
+                if (!freed) {
+                    btn.style.position = 'fixed';
+                    freed = true;
+                }
+
+                // случайная точка в пределах экрана (с отступами)
+                const x = Math.max(10, Math.floor(Math.random() * (w - bw - 20)));
+                const y = Math.max(10, Math.floor(Math.random() * (h - bh - 20)));
+                btn.style.left = x + 'px';
+                btn.style.top  = y + 'px';
+
+                if (msg) {
+                    msg.textContent = phrases[tries % phrases.length];
+                    msg.style.opacity = '1';
+                }
+                tries++;
+            }
+
+            // Убегает при наведении и при клике (вдруг успел)
+            btn.addEventListener('mouseenter', moveAway);
+            btn.addEventListener('click', function (e) { e.preventDefault(); moveAway(); });
+            btn.addEventListener('touchstart', function (e) { e.preventDefault(); moveAway(); }, { passive: false });
+
+            // Убегает, как только курсор подбирается близко
+            document.addEventListener('mousemove', function (e) {
+                const r = btn.getBoundingClientRect();
+                const cx = r.left + r.width / 2;
+                const cy = r.top + r.height / 2;
+                const dist = Math.hypot(e.clientX - cx, e.clientY - cy);
+                if (dist < 110) moveAway();
+            });
+        })();
+    </script>
 
 </body>
 </html>
