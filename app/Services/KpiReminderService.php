@@ -64,6 +64,6 @@ class KpiReminderService
      */
     public function isRemindTime(): bool
     {
-        return Carbon::now()->hour >= (int) config('webpush.remind_hour', 17);
+        return Carbon::now()->hour >= (int) config('kpi.remind_hour', 17);
     }
 }

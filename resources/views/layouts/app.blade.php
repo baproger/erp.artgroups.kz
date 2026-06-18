@@ -428,6 +428,51 @@
                         <span class="text-gray-300">·</span>
                         <span x-text="time" class="font-mono tabular-nums"></span>
                     </div>
+                    {{-- Колокольчик: незаполненные KPI (для сотрудников отделов) --}}
+                    @if(! $authUser->canSeeAllBranches() && ! $authUser->isCommercialDirector() && $authUser->department)
+                    <div x-data="kpiBell" class="relative">
+                        <button @click="open = !open" type="button"
+                                class="relative p-2 rounded-lg text-gray-500 hover:bg-gray-100 transition-colors"
+                                title="Незаполненные KPI за сегодня">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                      d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/>
+                            </svg>
+                            <span x-show="count > 0" x-cloak x-text="count"
+                                  class="absolute top-0.5 right-0.5 min-w-[16px] h-[16px] px-1 flex items-center justify-center text-[10px] font-bold text-white bg-red-500 rounded-full"></span>
+                        </button>
+
+                        <div x-show="open" x-cloak @click.outside="open = false"
+                             x-transition.opacity
+                             class="absolute right-0 mt-2 w-80 max-w-[calc(100vw-2rem)] bg-white rounded-xl shadow-2xl border border-gray-100 z-50 overflow-hidden">
+                            <div class="px-4 py-3 border-b border-gray-100">
+                                <span class="font-semibold text-gray-800 text-sm">Незаполненные KPI за сегодня</span>
+                            </div>
+                            <div class="max-h-80 overflow-y-auto">
+                                <template x-if="!loaded">
+                                    <div class="px-4 py-6 text-center text-sm text-gray-400">Загрузка…</div>
+                                </template>
+                                <template x-if="loaded && count === 0">
+                                    <div class="px-4 py-6 text-center text-sm text-gray-500">✅ Все показатели за сегодня заполнены</div>
+                                </template>
+                                <template x-for="(g, i) in groups" :key="i">
+                                    <div class="px-4 py-2.5 border-b border-gray-50 last:border-0">
+                                        <div class="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1.5" x-text="g.department"></div>
+                                        <ul class="space-y-1">
+                                            <template x-for="(name, j) in g.kpis" :key="j">
+                                                <li class="flex items-center gap-2 text-sm text-gray-700">
+                                                    <span class="w-1.5 h-1.5 rounded-full bg-amber-400 shrink-0"></span>
+                                                    <span x-text="name"></span>
+                                                </li>
+                                            </template>
+                                        </ul>
+                                    </div>
+                                </template>
+                            </div>
+                        </div>
+                    </div>
+                    @endif
+
                     <a href="{{ route('profile') }}" class="flex items-center gap-2 group">
                         <div class="w-8 h-8 rounded-full overflow-hidden ring-2 ring-gray-200 group-hover:ring-emerald-400 transition-all shrink-0">
                             @if($authAvatarUrl)
@@ -474,108 +519,35 @@
 @stack('scripts')
 
 {{-- ═══════════════════════════════════════════════════════════════
-     WEB PUSH — напоминания о незаполненных фактах (работают даже при
-     закрытом сайте, рассылает сервер в {{ config('webpush.remind_hour', 17) }}:00).
-     Для сотрудников отделов.
+     КОЛОКОЛЬЧИК — напоминания о незаполненных за сегодня KPI (для сотрудников)
 ═══════════════════════════════════════════════════════════════ --}}
 @if(! $authUser->canSeeAllBranches() && ! $authUser->isCommercialDirector() && $authUser->department)
 <script>
-(function () {
-    const CSRF       = document.querySelector('meta[name="csrf-token"]').content;
-    const UNFILLED   = "{{ route('notifications.unfilled') }}";
-    const VAPID_URL  = "{{ route('push.vapid') }}";
-    const SUB_URL    = "{{ route('push.subscribe') }}";
-    const ICON       = "{{ $logoSrc }}";
-    const POLL_MS    = 5 * 60 * 1000;
+    document.addEventListener('alpine:init', () => {
+        Alpine.data('kpiBell', () => ({
+            open: false,
+            loaded: false,
+            count: 0,
+            groups: [],
+            endpoint: "{{ route('notifications.unfilled') }}",
 
-    function urlBase64ToUint8Array(base64String) {
-        const padding = '='.repeat((4 - base64String.length % 4) % 4);
-        const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
-        const raw = atob(base64);
-        const out = new Uint8Array(raw.length);
-        for (let i = 0; i < raw.length; i++) out[i] = raw.charCodeAt(i);
-        return out;
-    }
+            init() {
+                this.load();
+                setInterval(() => this.load(), 5 * 60 * 1000); // обновлять каждые 5 минут
+            },
 
-    // ── Подписка на Web Push (работает при закрытом сайте) ──
-    async function setupPush() {
-        if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
-        try {
-            const reg = await navigator.serviceWorker.register('/sw.js');
-
-            if (Notification.permission === 'default') {
-                const perm = await Notification.requestPermission();
-                if (perm !== 'granted') return;
-            }
-            if (Notification.permission !== 'granted') return;
-
-            let sub = await reg.pushManager.getSubscription();
-            if (!sub) {
-                const keyRes = await fetch(VAPID_URL, { headers: { 'Accept': 'application/json' } });
-                const { key } = await keyRes.json();
-                sub = await reg.pushManager.subscribe({
-                    userVisibleOnly: true,
-                    applicationServerKey: urlBase64ToUint8Array(key),
-                });
-            }
-
-            const json = sub.toJSON();
-            await fetch(SUB_URL, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': CSRF, 'Accept': 'application/json' },
-                body: JSON.stringify({
-                    endpoint: sub.endpoint,
-                    keys: json.keys,
-                    content_encoding: (PushManager.supportedContentEncodings || ['aes128gcm'])[0],
-                }),
-            });
-        } catch (e) { /* push недоступен — сработает баннер-фоллбэк ниже */ }
-    }
-
-    // ── Баннер-фоллбэк (когда push не разрешён, пока вкладка открыта) ──
-    function showBanner(text) {
-        if (document.getElementById('kpiReminderBanner')) return;
-        const el = document.createElement('div');
-        el.id = 'kpiReminderBanner';
-        el.style.cssText = 'position:fixed;bottom:20px;right:20px;z-index:9999;max-width:360px;' +
-            'background:#fff;border:1px solid #fcd34d;border-left:4px solid #f59e0b;border-radius:14px;' +
-            'box-shadow:0 10px 30px rgba(0,0,0,.12);padding:14px 16px;font-size:13px;color:#374151;' +
-            'display:flex;gap:10px;align-items:flex-start;animation:fadeInUp .4s ease-out;';
-        el.innerHTML =
-            '<span style="font-size:20px;line-height:1">📋</span>' +
-            '<div style="flex:1"><div style="font-weight:600;color:#b45309;margin-bottom:2px">Заполните KPI за сегодня</div>' +
-            '<div>' + text + '</div></div>' +
-            '<button style="background:none;border:none;color:#9ca3af;cursor:pointer;font-size:16px;line-height:1" ' +
-            'onclick="this.parentElement.remove()">&times;</button>';
-        document.body.appendChild(el);
-        setTimeout(() => el && el.remove(), 12000);
-    }
-
-    function dayKey() { return 'kpiBannerShown_' + new Date().toISOString().slice(0, 10); }
-
-    async function checkFallback() {
-        // Баннер показываем только если системные уведомления НЕ разрешены
-        if ('Notification' in window && Notification.permission === 'granted') return;
-        try {
-            const res = await fetch(UNFILLED, { headers: { 'Accept': 'application/json' } });
-            if (!res.ok) return;
-            const data = await res.json();
-            if (data.should_notify && localStorage.getItem(dayKey()) !== '1') {
-                const names = [];
-                data.departments.forEach(d => d.kpis.forEach(k => names.push(k)));
-                const preview = names.slice(0, 4).join(', ');
-                const more = names.length > 4 ? ' и ещё ' + (names.length - 4) : '';
-                showBanner('Не заполнено ' + data.count + ' KPI за сегодня: ' + preview + more);
-                localStorage.setItem(dayKey(), '1');
-            }
-        } catch (e) { /* тихо */ }
-    }
-
-    setupPush();
-    document.addEventListener('click', () => { if (Notification.permission === 'default') setupPush(); }, { once: true });
-    checkFallback();
-    setInterval(checkFallback, POLL_MS);
-})();
+            async load() {
+                try {
+                    const res = await fetch(this.endpoint, { headers: { 'Accept': 'application/json' } });
+                    if (!res.ok) return;
+                    const data = await res.json();
+                    this.count  = data.count;
+                    this.groups = data.departments;
+                    this.loaded = true;
+                } catch (e) { /* тихо игнорируем */ }
+            },
+        }));
+    });
 </script>
 @endif
 </body>

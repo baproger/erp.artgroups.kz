@@ -193,9 +193,4 @@ class User extends Authenticatable
     {
         return $this->belongsTo(Branch::class);
     }
-
-    public function pushSubscriptions()
-    {
-        return $this->hasMany(PushSubscription::class);
-    }
 }

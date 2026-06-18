@@ -32,11 +32,8 @@ Route::middleware(['auth', 'active'])->group(function () {
     Route::get('/dashboard',            [DashboardController::class, 'index'])->name('dashboard');
     Route::get('/dashboard/live-stats', [DashboardController::class, 'liveStats'])->name('dashboard.live');
 
-    // Напоминания о незаполненных фактах + Web Push подписки
+    // Напоминания о незаполненных фактах (для колокольчика в шапке)
     Route::get('/notifications/unfilled-facts', [NotificationController::class, 'unfilledFacts'])->name('notifications.unfilled');
-    Route::get('/push/vapid-key',  [NotificationController::class, 'vapidKey'])->name('push.vapid');
-    Route::post('/push/subscribe', [NotificationController::class, 'subscribe'])->name('push.subscribe');
-    Route::post('/push/unsubscribe', [NotificationController::class, 'unsubscribe'])->name('push.unsubscribe');
 
     // KPI per department
     Route::get('/branches/{branch}',               [BranchController::class, 'show'])->name('branch.view');
