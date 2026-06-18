@@ -472,5 +472,88 @@
 </div>
 
 @stack('scripts')
+
+{{-- ═══════════════════════════════════════════════════════════════
+     PUSH-НАПОМИНАНИЕ О НЕЗАПОЛНЕННЫХ ФАКТАХ (с 17:00, для сотрудников)
+═══════════════════════════════════════════════════════════════ --}}
+@if(! $authUser->canSeeAllBranches() && ! $authUser->isCommercialDirector() && $authUser->department)
+<script>
+(function () {
+    const ENDPOINT = "{{ route('notifications.unfilled') }}";
+    const ICON     = "{{ $logoSrc }}";
+    const POLL_MS  = 5 * 60 * 1000; // проверять каждые 5 минут
+
+    function dayKey() {
+        return 'kpiReminderShown_' + new Date().toISOString().slice(0, 10);
+    }
+
+    function buildBody(data) {
+        const names = [];
+        data.departments.forEach(d => d.kpis.forEach(k => names.push(k)));
+        const preview = names.slice(0, 4).join(', ');
+        const more = names.length > 4 ? ' и ещё ' + (names.length - 4) : '';
+        return 'Не заполнено ' + data.count + ' KPI за сегодня: ' + preview + more;
+    }
+
+    function showBanner(text) {
+        if (document.getElementById('kpiReminderBanner')) return;
+        const el = document.createElement('div');
+        el.id = 'kpiReminderBanner';
+        el.style.cssText = 'position:fixed;bottom:20px;right:20px;z-index:9999;max-width:360px;' +
+            'background:#fff;border:1px solid #fcd34d;border-left:4px solid #f59e0b;border-radius:14px;' +
+            'box-shadow:0 10px 30px rgba(0,0,0,.12);padding:14px 16px;font-size:13px;color:#374151;' +
+            'display:flex;gap:10px;align-items:flex-start;animation:fadeInUp .4s ease-out;';
+        el.innerHTML =
+            '<span style="font-size:20px;line-height:1">📋</span>' +
+            '<div style="flex:1"><div style="font-weight:600;color:#b45309;margin-bottom:2px">Заполните KPI за сегодня</div>' +
+            '<div>' + text + '</div></div>' +
+            '<button style="background:none;border:none;color:#9ca3af;cursor:pointer;font-size:16px;line-height:1" ' +
+            'onclick="this.parentElement.remove()">&times;</button>';
+        document.body.appendChild(el);
+        setTimeout(() => el && el.remove(), 12000);
+    }
+
+    function notify(data) {
+        const body = buildBody(data);
+        if ('Notification' in window && Notification.permission === 'granted') {
+            try {
+                const n = new Notification('📋 Заполните KPI за сегодня', {
+                    body: body, icon: ICON, tag: 'kpi-reminder', renotify: true,
+                });
+                n.onclick = () => { window.focus(); n.close(); };
+            } catch (e) {
+                showBanner(body);
+            }
+        } else {
+            showBanner(body); // запасной вариант, если разрешение не выдано
+        }
+    }
+
+    async function check() {
+        try {
+            const res = await fetch(ENDPOINT, { headers: { 'Accept': 'application/json' } });
+            if (!res.ok) return;
+            const data = await res.json();
+            if (data.should_notify && localStorage.getItem(dayKey()) !== '1') {
+                notify(data);
+                localStorage.setItem(dayKey(), '1'); // одно напоминание в день
+            }
+        } catch (e) { /* тихо игнорируем */ }
+    }
+
+    // Запросить разрешение на уведомления (на загрузке и по первому клику)
+    function askPermission() {
+        if ('Notification' in window && Notification.permission === 'default') {
+            Notification.requestPermission().catch(() => {});
+        }
+    }
+    askPermission();
+    document.addEventListener('click', askPermission, { once: true });
+
+    check();
+    setInterval(check, POLL_MS);
+})();
+</script>
+@endif
 </body>
 </html>

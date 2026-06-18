@@ -7,6 +7,7 @@ use App\Http\Controllers\BranchController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\ExportController;
 use App\Http\Controllers\KpiController;
+use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\RecommendationController;
 use App\Http\Controllers\SettingsController;
@@ -30,6 +31,9 @@ Route::middleware(['auth', 'active'])->group(function () {
 
     Route::get('/dashboard',            [DashboardController::class, 'index'])->name('dashboard');
     Route::get('/dashboard/live-stats', [DashboardController::class, 'liveStats'])->name('dashboard.live');
+
+    // Напоминания о незаполненных фактах (для push-уведомлений)
+    Route::get('/notifications/unfilled-facts', [NotificationController::class, 'unfilledFacts'])->name('notifications.unfilled');
 
     // KPI per department
     Route::get('/branches/{branch}',               [BranchController::class, 'show'])->name('branch.view');

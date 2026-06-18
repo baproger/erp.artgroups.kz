@@ -156,6 +156,34 @@ class User extends Authenticatable
         return false;
     }
 
+    /**
+     * Отделы, по которым этот сотрудник вводит факты (для напоминаний).
+     * CEO и коммерческий директор не заполняют факты сами → пустой список.
+     * Мультифилиальный сотрудник: одноимённый отдел во всех доступных филиалах.
+     */
+    public function fillableDepartments(): \Illuminate\Support\Collection
+    {
+        if (in_array($this->role, ['ceo', 'commercial_director']) || ! $this->department) {
+            return collect();
+        }
+
+        $accessIds = $this->accessibleBranchIds();
+
+        if (! empty($accessIds)) {
+            $cross = \App\Models\Department::whereIn('branch_id', $accessIds)
+                ->where('name', $this->department->name)
+                ->where('is_active', true)
+                ->with('branch')
+                ->get();
+
+            if ($cross->isNotEmpty()) {
+                return $cross;
+            }
+        }
+
+        return collect([$this->department]);
+    }
+
     public function department()
     {
         return $this->belongsTo(Department::class);
