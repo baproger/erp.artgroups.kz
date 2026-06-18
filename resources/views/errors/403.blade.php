@@ -105,21 +105,50 @@
             ];
             let freed = false;
             let tries = 0;
+            let box = null;
 
-            function moveAway() {
-                const w = window.innerWidth, h = window.innerHeight;
+            const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+
+            // Зона, в которой кнопка имеет право прыгать — рядом с текстом, не по всему экрану.
+            function playArea() {
+                const r = btn.getBoundingClientRect();
+                const padX = 150, padTop = 30, padBottom = 90;
+                return {
+                    left:   r.left - padX,
+                    right:  r.right + padX,
+                    top:    r.top - padTop,
+                    bottom: r.bottom + padBottom,
+                };
+            }
+
+            function moveAway(cursorX, cursorY) {
                 const bw = btn.offsetWidth, bh = btn.offsetHeight;
 
                 if (!freed) {
+                    box = playArea();          // фиксируем зону до перевода в fixed
                     btn.style.position = 'fixed';
                     freed = true;
                 }
 
-                // случайная точка в пределах экрана (с отступами)
-                const x = Math.max(10, Math.floor(Math.random() * (w - bw - 20)));
-                const y = Math.max(10, Math.floor(Math.random() * (h - bh - 20)));
-                btn.style.left = x + 'px';
-                btn.style.top  = y + 'px';
+                const r  = btn.getBoundingClientRect();
+                const cx = r.left + r.width / 2;
+                const cy = r.top + r.height / 2;
+
+                // направление «от курсора», толкаем недалеко
+                let dx = cx - (cursorX ?? cx);
+                let dy = cy - (cursorY ?? cy);
+                const len = Math.hypot(dx, dy) || 1;
+                const push = 110;
+
+                let nx = cx + (dx / len) * push;
+                let ny = cy + (dy / len) * push;
+
+                // держим внутри зоны рядом с текстом
+                const left = clamp(nx - bw / 2, box.left, box.right - bw);
+                const top  = clamp(ny - bh / 2, box.top,  box.bottom - bh);
+
+                btn.style.left = left + 'px';
+                btn.style.top  = top + 'px';
 
                 if (msg) {
                     msg.textContent = phrases[tries % phrases.length];
@@ -128,18 +157,18 @@
                 tries++;
             }
 
-            // Убегает при наведении и при клике (вдруг успел)
-            btn.addEventListener('mouseenter', moveAway);
-            btn.addEventListener('click', function (e) { e.preventDefault(); moveAway(); });
-            btn.addEventListener('touchstart', function (e) { e.preventDefault(); moveAway(); }, { passive: false });
+            // Убегает при наведении/клике/тапе (вдруг успел)
+            btn.addEventListener('mouseenter', function (e) { moveAway(e.clientX, e.clientY); });
+            btn.addEventListener('click', function (e) { e.preventDefault(); moveAway(e.clientX, e.clientY); });
+            btn.addEventListener('touchstart', function (e) { e.preventDefault(); const t = e.touches[0]; moveAway(t.clientX, t.clientY); }, { passive: false });
 
-            // Убегает, как только курсор подбирается близко
+            // Дёргается только когда курсор совсем близко
             document.addEventListener('mousemove', function (e) {
                 const r = btn.getBoundingClientRect();
                 const cx = r.left + r.width / 2;
                 const cy = r.top + r.height / 2;
                 const dist = Math.hypot(e.clientX - cx, e.clientY - cy);
-                if (dist < 50) moveAway(); // отпрыгивает только когда курсор совсем близко
+                if (dist < 55) moveAway(e.clientX, e.clientY);
             });
         })();
     </script>
