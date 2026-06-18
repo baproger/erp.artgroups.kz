@@ -12,6 +12,11 @@ class KpiService
 {
     public function getKpiStats(Kpi $kpi, int $year, int $month, ?Carbon $asOf = null): array
     {
+        // Относительные показатели (CPL, CAC, конверсия) считаются отдельно
+        if ($kpi->isRatio()) {
+            return $this->getRatioKpiStats($kpi, $year, $month);
+        }
+
         $asOf = $asOf ?? Carbon::now();
         $daysInMonth = Carbon::createFromDate($year, $month, 1)->daysInMonth;
         $dayOfMonth = ($asOf->year === $year && $asOf->month === $month)
@@ -37,7 +42,73 @@ class KpiService
             'status'         => $status,
             'day_of_month'   => $dayOfMonth,
             'days_in_month'  => $daysInMonth,
+            'is_ratio'       => false,
         ];
+    }
+
+    /**
+     * Относительный показатель: факт = Σчислитель / Σзнаменатель × множитель
+     * за весь период. Сравнивается напрямую с целью (без дробления по дням).
+     */
+    private function getRatioKpiStats(Kpi $kpi, int $year, int $month): array
+    {
+        $numSum = $this->siblingFactSum($kpi, $kpi->numerator_slug, $year, $month);
+        $denSum = $this->siblingFactSum($kpi, $kpi->denominator_slug, $year, $month);
+        $factor = $kpi->factor ?: 1;
+
+        $fact = $denSum > 0 ? ($numSum / $denSum) * $factor : null;
+        $planMonth = $kpi->getPlanForMonth($year, $month); // целевое значение коэффициента
+
+        $pace = null;
+        $fulfillment = null;
+        if ($fact !== null && $planMonth > 0) {
+            if ($kpi->direction === 'down') {
+                // ниже цели — лучше (CPL, CAC)
+                $pace = $fact > 0 ? $planMonth / $fact : 1.5;
+            } else {
+                // выше цели — лучше (конверсия)
+                $pace = $fact / $planMonth;
+            }
+            $fulfillment = $pace * 100;
+        }
+
+        return [
+            'kpi'            => $kpi,
+            'plan_month'     => $planMonth,
+            'plan_to_date'   => $planMonth, // цель постоянна в течение месяца
+            'fact'           => $fact ?? 0,
+            'fulfillment'    => $fulfillment,
+            'pace'           => $pace,
+            'pace_pct'       => $pace !== null ? round($pace * 100, 1) : null,
+            'status'         => $this->getStatus($pace),
+            'day_of_month'   => null,
+            'days_in_month'  => null,
+            'is_ratio'       => true,
+        ];
+    }
+
+    /**
+     * Сумма фактов «соседнего» KPI того же отдела по слагу (с кэшем).
+     */
+    private array $siblingFactSumCache = [];
+
+    private function siblingFactSum(Kpi $kpi, ?string $slug, int $year, int $month): float
+    {
+        if (! $slug) {
+            return 0.0;
+        }
+
+        $key = "{$kpi->department_id}|{$slug}|{$year}|{$month}";
+        if (! array_key_exists($key, $this->siblingFactSumCache)) {
+            $sibling = Kpi::where('department_id', $kpi->department_id)
+                ->where('slug', $slug)
+                ->first();
+            $this->siblingFactSumCache[$key] = $sibling
+                ? $sibling->getFactSumForMonth($year, $month)
+                : 0.0;
+        }
+
+        return $this->siblingFactSumCache[$key];
     }
 
     public function getDepartmentStats(Department $department, int $year, int $month, ?Carbon $asOf = null): array

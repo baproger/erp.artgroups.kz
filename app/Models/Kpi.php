@@ -8,9 +8,23 @@ class Kpi extends Model
 {
     protected $fillable = [
         'department_id', 'name', 'slug', 'unit', 'direction', 'weight', 'is_active', 'sort_order',
+        'aggregation', 'numerator_slug', 'denominator_slug', 'factor',
     ];
 
-    protected $casts = ['is_active' => 'boolean', 'weight' => 'integer'];
+    protected $casts = [
+        'is_active' => 'boolean',
+        'weight'    => 'integer',
+        'factor'    => 'integer',
+    ];
+
+    /**
+     * Относительный показатель (CPL, CAC, конверсия) — пересчитывается из
+     * базовых метрик за период, не вводится и не суммируется.
+     */
+    public function isRatio(): bool
+    {
+        return $this->aggregation === 'ratio';
+    }
 
     public function department()
     {

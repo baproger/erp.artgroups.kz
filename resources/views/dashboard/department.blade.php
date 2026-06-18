@@ -200,7 +200,12 @@
 
                     {{-- Название --}}
                     <td class="px-6 py-4">
-                        <div class="font-medium text-gray-800">{{ $s['kpi']->name }}</div>
+                        <div class="font-medium text-gray-800 flex items-center gap-2">
+                            {{ $s['kpi']->name }}
+                            @if($s['kpi']->isRatio())
+                            <span class="text-[10px] px-1.5 py-0.5 rounded bg-violet-100 text-violet-600 font-semibold uppercase tracking-wide">расчётный</span>
+                            @endif
+                        </div>
                         @if($unit)
                         <div class="text-xs text-gray-400 mt-0.5">{{ $unit }} · вес {{ $s['kpi']->weight }}</div>
                         @endif
@@ -280,6 +285,17 @@
 
                     {{-- Кнопки действий --}}
                     <td class="px-4 py-4">
+                        @if($s['kpi']->isRatio())
+                        {{-- Расчётный показатель — не вводится вручную --}}
+                        <div class="flex items-center justify-center">
+                            <span class="inline-flex items-center gap-1 text-xs px-2.5 py-1.5 bg-violet-50 text-violet-600 rounded-lg font-medium" title="Считается автоматически из базовых показателей">
+                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z"/>
+                                </svg>
+                                Авто-расчёт
+                            </span>
+                        </div>
+                        @else
                         <div class="flex items-center justify-center gap-2">
 
                             {{-- + Факт — доступно ВСЕМ, отключается только в режиме редактирования плана --}}
@@ -301,10 +317,12 @@
                                 История
                             </a>
                         </div>
+                        @endif
                     </td>
                 </tr>
 
-                {{-- ── Форма ввода факта ── --}}
+                {{-- ── Форма ввода факта (только для вводимых показателей) ── --}}
+                @if(! $s['kpi']->isRatio())
                 <tr x-show="openFact === {{ $kpiId }}" x-cloak class="bg-emerald-50/60">
                     <td colspan="7" class="px-6 py-4">
                         <form action="{{ route('kpi.fact.store', $s['kpi']) }}"
@@ -350,6 +368,7 @@
                         </form>
                     </td>
                 </tr>
+                @endif
 
                 @endforeach
             </tbody>

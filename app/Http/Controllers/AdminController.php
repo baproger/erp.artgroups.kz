@@ -225,11 +225,15 @@ class AdminController extends Controller
                 ['slug' => 'followup-zvonki-b',       'name' => 'Follow-up звонки',         'unit' => 'шт.', 'dir' => 'up', 'w' => 3, 'plan' => 250],
             ]],
             ['name' => 'Маркетинг',    'sort' => 3, 'kpis' => [
+                // Базовые метрики (вводятся вручную)
                 ['slug' => 'kolichestvo-lidov-b',    'name' => 'Количество лидов',       'unit' => 'шт.', 'dir' => 'up',   'w' => 5, 'plan' => 80],
-                ['slug' => 'stoimost-lida-b',        'name' => 'Стоимость лида',         'unit' => 'тнг', 'dir' => 'down', 'w' => 4, 'plan' => 7000],
-                ['slug' => 'konversiya-lid-formy-b', 'name' => 'Конверсия лид-формы',    'unit' => '%',   'dir' => 'up',   'w' => 4, 'plan' => 5],
-                ['slug' => 'stoimost-klienta-b',     'name' => 'Стоимость клиента',      'unit' => 'тнг', 'dir' => 'down', 'w' => 4, 'plan' => 35_000],
                 ['slug' => 'organicheskiy-lid-b',    'name' => 'Органический лид',       'unit' => 'шт.', 'dir' => 'up',   'w' => 3, 'plan' => 30],
+                ['slug' => 'rashod-reklama-b',       'name' => 'Расход на рекламу',      'unit' => 'тнг', 'dir' => 'down', 'w' => 3, 'plan' => 560_000],
+                ['slug' => 'novye-klienty-b',        'name' => 'Новые клиенты',          'unit' => 'шт.', 'dir' => 'up',   'w' => 5, 'plan' => 15],
+                // Расчётные метрики
+                ['slug' => 'stoimost-lida-b',        'name' => 'Стоимость лида',         'unit' => 'тнг', 'dir' => 'down', 'w' => 4, 'plan' => 7000,   'agg' => 'ratio', 'num' => 'rashod-reklama-b', 'den' => 'kolichestvo-lidov-b', 'factor' => 1],
+                ['slug' => 'konversiya-lid-formy-b', 'name' => 'Конверсия лид-формы',    'unit' => '%',   'dir' => 'up',   'w' => 4, 'plan' => 20,     'agg' => 'ratio', 'num' => 'novye-klienty-b',  'den' => 'kolichestvo-lidov-b', 'factor' => 100],
+                ['slug' => 'stoimost-klienta-b',     'name' => 'Стоимость клиента',      'unit' => 'тнг', 'dir' => 'down', 'w' => 4, 'plan' => 35_000, 'agg' => 'ratio', 'num' => 'rashod-reklama-b', 'den' => 'novye-klienty-b',     'factor' => 1],
             ]],
             ['name' => 'Производство', 'sort' => 4, 'kpis' => [
                 ['slug' => 'gotovye-zakazy-b',        'name' => 'Готовые заказы',          'unit' => 'шт.', 'dir' => 'up',   'w' => 5, 'plan' => 20],
@@ -266,14 +270,18 @@ class AdminController extends Controller
                 $kpi = Kpi::firstOrCreate(
                     ['department_id' => $dept->id, 'slug' => $kpiData['slug']],
                     [
-                        'name'          => $kpiData['name'],
-                        'unit'          => $kpiData['unit'],
-                        'direction'     => $kpiData['dir'],
-                        'weight'        => $kpiData['w'],
-                        'department_id' => $dept->id,
-                        'slug'          => $kpiData['slug'],
-                        'sort_order'    => $i + 1,
-                        'is_active'     => true,
+                        'name'             => $kpiData['name'],
+                        'unit'             => $kpiData['unit'],
+                        'direction'        => $kpiData['dir'],
+                        'weight'           => $kpiData['w'],
+                        'department_id'    => $dept->id,
+                        'slug'             => $kpiData['slug'],
+                        'sort_order'       => $i + 1,
+                        'is_active'        => true,
+                        'aggregation'      => $kpiData['agg'] ?? 'sum',
+                        'numerator_slug'   => $kpiData['num'] ?? null,
+                        'denominator_slug' => $kpiData['den'] ?? null,
+                        'factor'           => $kpiData['factor'] ?? 1,
                     ]
                 );
 

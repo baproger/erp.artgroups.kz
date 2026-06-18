@@ -26,11 +26,15 @@ class KpiSeeder extends Seeder
                 ['slug' => 'followup-zvonki',       'name' => 'Follow-up звонки',           'unit' => 'шт.',  'direction' => 'up',   'weight' => 3],
             ],
             'marketing' => [
+                // Базовые метрики (вводятся вручную, суммируются)
                 ['slug' => 'kolichestvo-lidov',     'name' => 'Количество лидов',           'unit' => 'шт.',  'direction' => 'up',   'weight' => 5],
-                ['slug' => 'stoimost-lida',         'name' => 'Стоимость лида',             'unit' => 'тнг',  'direction' => 'down', 'weight' => 4],
-                ['slug' => 'konversiya-lid-formy',  'name' => 'Конверсия лид-формы',        'unit' => '%',    'direction' => 'up',   'weight' => 4],
-                ['slug' => 'stoimost-klienta',      'name' => 'Стоимость клиента',          'unit' => 'тнг',  'direction' => 'down', 'weight' => 4],
                 ['slug' => 'organicheskiy-lid',     'name' => 'Органический лид',           'unit' => 'шт.',  'direction' => 'up',   'weight' => 3],
+                ['slug' => 'rashod-reklama',        'name' => 'Расход на рекламу',          'unit' => 'тнг',  'direction' => 'down', 'weight' => 3],
+                ['slug' => 'novye-klienty',         'name' => 'Новые клиенты',              'unit' => 'шт.',  'direction' => 'up',   'weight' => 5],
+                // Расчётные метрики (пересчитываются из базовых)
+                ['slug' => 'stoimost-lida',         'name' => 'Стоимость лида',             'unit' => 'тнг',  'direction' => 'down', 'weight' => 4, 'aggregation' => 'ratio', 'numerator_slug' => 'rashod-reklama', 'denominator_slug' => 'kolichestvo-lidov', 'factor' => 1],
+                ['slug' => 'konversiya-lid-formy',  'name' => 'Конверсия лид-формы',        'unit' => '%',    'direction' => 'up',   'weight' => 4, 'aggregation' => 'ratio', 'numerator_slug' => 'novye-klienty',  'denominator_slug' => 'kolichestvo-lidov', 'factor' => 100],
+                ['slug' => 'stoimost-klienta',      'name' => 'Стоимость клиента',          'unit' => 'тнг',  'direction' => 'down', 'weight' => 4, 'aggregation' => 'ratio', 'numerator_slug' => 'rashod-reklama', 'denominator_slug' => 'novye-klienty',     'factor' => 1],
             ],
             'production' => [
                 ['slug' => 'gotovye-zakazy',        'name' => 'Готовые заказы',             'unit' => 'шт.',  'direction' => 'up',   'weight' => 5],
