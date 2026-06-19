@@ -3,6 +3,7 @@
 namespace App\Exceptions;
 
 use Illuminate\Foundation\Exceptions\Handler as ExceptionHandler;
+use Symfony\Component\HttpKernel\Exception\HttpExceptionInterface;
 use Throwable;
 
 class Handler extends ExceptionHandler
@@ -25,6 +26,18 @@ class Handler extends ExceptionHandler
     {
         $this->reportable(function (Throwable $e) {
             //
+        });
+
+        // Одна красивая страница на все HTTP-ошибки (403, 404, 419, 429, 503 …)
+        $this->renderable(function (HttpExceptionInterface $e, $request) {
+            if ($request->expectsJson()) {
+                return null; // для API/AJAX оставляем JSON-ответ
+            }
+
+            return response()->view('errors.403', [
+                'code'      => $e->getStatusCode(),
+                'exception' => $e,
+            ], $e->getStatusCode(), $e->getHeaders());
         });
     }
 }
