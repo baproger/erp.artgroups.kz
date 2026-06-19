@@ -11,7 +11,7 @@
 <body class="min-h-screen bg-gradient-to-br from-emerald-900 via-emerald-800 to-teal-700 flex items-center justify-center p-4">
 
 @php
-    $deptsJson = $departments->map(fn($d) => ['id'=>$d->id,'name'=>$d->name,'branch_id'=>$d->branch_id])->values()->toJson();
+    $deptsJson = $departments->map(fn($d) => ['id'=>$d->id,'name'=>$d->name,'branch_id'=>$d->branch_id])->values()->toJson(JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP);
     $companyName = \App\Models\Setting::get('company_name', 'Artgroups');
     $companyLogo = \App\Models\Setting::get('company_logo');
     $logoSrc     = $companyLogo ? asset('storage/' . $companyLogo) : asset('images/artlogo.png');

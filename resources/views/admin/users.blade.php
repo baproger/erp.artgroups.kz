@@ -430,7 +430,7 @@
 </div>
 
 @php
-    $deptsJson = $departments->map(fn($d) => ['id' => $d->id, 'name' => $d->name, 'branch_id' => $d->branch_id])->values()->toJson();
+    $deptsJson = $departments->map(fn($d) => ['id' => $d->id, 'name' => $d->name, 'branch_id' => $d->branch_id])->values()->toJson(JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP);
 @endphp
 <script>
 const _allDepts = {!! $deptsJson !!};

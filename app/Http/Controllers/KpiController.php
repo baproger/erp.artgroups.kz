@@ -100,6 +100,11 @@ class KpiController extends Controller
             abort(403);
         }
 
+        // Доступ к отделу этого KPI (комдиректор — только свои филиалы)
+        if (! $user->canAccessDepartment($kpi->department)) {
+            abort(403);
+        }
+
         $request->validate([
             'year'  => 'required|integer|min:2020|max:2099',
             'month' => 'required|integer|min:1|max:12',
